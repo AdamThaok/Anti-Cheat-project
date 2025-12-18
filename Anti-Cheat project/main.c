@@ -5,6 +5,7 @@
 
 #include <psapi.h> 
 #include <tlhelp32.h>
+#include <stddef.h>
 //Sus process detection
 static DWORD crc32_table[256];
 
@@ -18,68 +19,22 @@ void InitCRC32Table() {
     }
 }
 
-DWORD GetPIDByName(const char* processName) {
-    HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
-    if (hSnapshot == INVALID_HANDLE_VALUE) return 0;
 
-    PROCESSENTRY32 pe32;
-    pe32.dwSize = sizeof(PROCESSENTRY32);
 
-    if (Process32First(hSnapshot, &pe32)) {
-        do {
-            if (_stricmp(pe32.szExeFile, processName) == 0) {
-                CloseHandle(hSnapshot);
-                return pe32.th32ProcessID;
-            }
-        } while (Process32Next(hSnapshot, &pe32));
-    }
 
-    CloseHandle(hSnapshot);
-    return 0;  // Not found
+
+BOOL CheckThreadStack(HANDLE hThread, CONTEXT* ctx) {
+
 }
-BOOL CheckIATHooks(DWORD targetPID) {
-    HANDLE hProcess = OpenProcess(PROCESS_VM_READ | PROCESS_QUERY_INFORMATION,
-        FALSE, targetPID);
-    if (!hProcess) return FALSE;
 
-    // Get dummy-game's base address
-    HMODULE hMods[1024];
-    DWORD cbNeeded;
-    EnumProcessModules(hProcess, hMods, sizeof(hMods), &cbNeeded);
-    HMODULE targetModule = hMods[0];  // Main module
 
-    // Read DOS header
-    IMAGE_DOS_HEADER dosHeader;
-    ReadProcessMemory(hProcess, targetModule, &dosHeader, sizeof(dosHeader), NULL);
 
-    // Read NT headers
-    IMAGE_NT_HEADERS ntHeaders;
-    ReadProcessMemory(hProcess, (PBYTE)targetModule + dosHeader.e_lfanew,
-        &ntHeaders, sizeof(ntHeaders), NULL);
 
-    // Read Import Directory
-    DWORD importRVA = ntHeaders.OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT].VirtualAddress;
 
-    IMAGE_IMPORT_DESCRIPTOR importDesc;
-    PBYTE importAddr = (PBYTE)targetModule + importRVA;
 
-    do {
-        ReadProcessMemory(hProcess, importAddr, &importDesc, sizeof(importDesc), NULL);
-        if (!importDesc.Name) break;
 
-        // Read DLL name
-        char dllName[256];
-        ReadProcessMemory(hProcess, (PBYTE)targetModule + importDesc.Name, dllName, 256, NULL);
 
-        // Check each IAT entry...
-        // (Similar logic, but using ReadProcessMemory for everything)
 
-        importAddr += sizeof(IMAGE_IMPORT_DESCRIPTOR);
-    } while (importDesc.Name);
-
-    CloseHandle(hProcess);
-    return FALSE;
-}
 int main() {
     InitCRC32Table();  // ADD THIS
 
@@ -97,7 +52,7 @@ int main() {
     pe32.dwSize = sizeof(PROCESSENTRY32);
     if (Process32First(hSnapshot, &pe32)) {
         do {
-            wprintf(L"PID: %lu - %ls\n", pe32.th32ProcessID, pe32.szExeFile);
+            // wprintf(L"PID: %lu - %ls\n", pe32.th32ProcessID, pe32.szExeFile);
         } while (Process32Next(hSnapshot, &pe32));
     }
     CloseHandle(hSnapshot);
@@ -132,11 +87,83 @@ int main() {
 
     // 3 IAT Hook detection
     DWORD pid = GetPIDByName("dummy-game.exe");
-    if (!CheckIATHooks(pid)) {
+    if (CheckIATHooks(pid)) {
         printf("IAT Hook Detected!\n");
     }
 
 
+
+
+
+    // 4 Eat detection 
+    //Find kernel32 base
+    // find export table
+    //iterate for each function number
+
+    HMODULE kernel32Base = GetModuleHandleA("kernel32.dll");
+
+    //fine eat
+// 4. EAT Detection (Remote Process)
+
+    HANDLE hProcess = OpenProcess(PROCESS_VM_READ | PROCESS_QUERY_INFORMATION, FALSE, pid);
+    if (!hProcess) {
+        printf("[!] Failed to open process. Error: %lu\n", GetLastError());
+        return 1;
+    }
+
+    // Alternative: Check only important DLLs
+    const char* criticalDLLs[] = {
+        "kernel32.dll",
+        "kernelbase.dll",
+        "ntdll.dll",
+        "user32.dll",
+        "gdi32.dll",
+        "d3d9.dll",
+        "d3d11.dll",
+        "dxgi.dll"
+    };
+
+    for (int i = 0; i < sizeof(criticalDLLs) / sizeof(criticalDLLs[0]); i++) {
+        CheckEATHooksForModule(hProcess, criticalDLLs[i]);
+    }
+    printf("[+] Scan complete. No EAT hooks found.\n");
+
+
+
+
+
+
+
+
+    // stack detection
+
+
+
+	THREADENTRY32 te32;
+	HANDLE ThreadSnap = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, pid);
+    CONTEXT ctx;
+    Thread32First(ThreadSnap, &te32);
+
+    do {
+        if (te32.th32OwnerProcessID == pid) {
+            //check if stack has legit values
+            HANDLE hThread = OpenThread(THREAD_GET_CONTEXT, FALSE, te32.th32ThreadID);
+            if (!hThread) { printf("[-] Got an invalid thread handle, exiting..."); exit(1); }
+            SuspendThread(hThread);
+            ctx.ContextFlags = CONTEXT_FULL;
+            GetThreadContext(hThread, &ctx);
+            
+            CheckThreadStack(hThread, &ctx);
+
+            ResumeThread(hThread);
+            CloseHandle(hThread);
+        }
+    } while (Thread32Next(ThreadSnap, &te32));
+       
+
+
+
+    
 
 
 
