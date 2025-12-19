@@ -235,3 +235,30 @@ BOOL CheckIATHooks(DWORD targetPID) {
         return TRUE;
     }
 }
+
+
+ BOOL CheckThreadStack(HANDLE hThread, CONTEXT* ctx) {
+    SIZE_T ReadSize;
+    DWORD64 buffer [100];
+    if (!ReadProcessMemory(hProcess, (PVOID)ctx->Rsp, (PVOID)buffer, sizeof(buffer), NULL)){
+        printf("[-] Error reading thread stack\n");
+        exit(1); }
+    MEMORY_BASIC_INFORMATION mbi, addrMbi;
+
+    VirtualQueryEx(hProcess, (PVOID)ctx->Rsp, &mbi, sizeof(mbi));
+    for (DWORD64 i = 0; i < sizeof(buffer)/sizeof(DWORD64); i++) {
+        
+        if (ShouldSkipStackValue(buffer[i], &mbi, &addrMbi)) {
+            continue;
+        }
+
+        if (!isBackedByModuleRemote((PVOID)buffer[i])) {
+
+            printf("[!] Stack hook detected!\n");
+        }
+    }
+   
+
+
+
+}

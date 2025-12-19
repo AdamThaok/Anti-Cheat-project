@@ -3,6 +3,6 @@
 
 #include "common.h"
 
-void InitCRC32Table();
+void InitCRC32Table(); //check file hash integrity 
 
 #endif

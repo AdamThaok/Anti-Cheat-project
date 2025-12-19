@@ -1,13 +1,18 @@
 #define _CRT_SECURE_NO_WARNINGS
-#include <stdio.h>
 
-#include <Windows.h>
-
-#include <psapi.h> 
-#include <tlhelp32.h>
-#include <stddef.h>
+#include "winternl.h"
+#include "common.h"
+#include "process_utils.h"
+#include "hooks.h"
 //Sus process detection
 static DWORD crc32_table[256];
+HANDLE hProcess;
+
+// Global variables requested (do not change program logic)
+// These mirror the variables used later in main() so they are available globally.
+
+ULONG size = 0;
+NTSTATUS status = 0;
 
 void InitCRC32Table() {
     for (DWORD i = 0; i < 256; i++) {
@@ -18,22 +23,6 @@ void InitCRC32Table() {
         crc32_table[i] = crc;
     }
 }
-
-
-
-
-
-BOOL CheckThreadStack(HANDLE hThread, CONTEXT* ctx) {
-
-}
-
-
-
-
-
-
-
-
 
 int main() {
     InitCRC32Table();  // ADD THIS
@@ -83,17 +72,11 @@ int main() {
         printf("[!] File integrity violation!\n");
     }
 
-
-
     // 3 IAT Hook detection
     DWORD pid = GetPIDByName("dummy-game.exe");
     if (CheckIATHooks(pid)) {
         printf("IAT Hook Detected!\n");
     }
-
-
-
-
 
     // 4 Eat detection 
     //Find kernel32 base
@@ -105,7 +88,7 @@ int main() {
     //fine eat
 // 4. EAT Detection (Remote Process)
 
-    HANDLE hProcess = OpenProcess(PROCESS_VM_READ | PROCESS_QUERY_INFORMATION, FALSE, pid);
+    hProcess = OpenProcess(PROCESS_VM_READ | PROCESS_QUERY_INFORMATION, FALSE, pid);
     if (!hProcess) {
         printf("[!] Failed to open process. Error: %lu\n", GetLastError());
         return 1;
@@ -128,45 +111,69 @@ int main() {
     }
     printf("[+] Scan complete. No EAT hooks found.\n");
 
-
-
-
-
-
-
-
     // stack detection
 
-
-
-	THREADENTRY32 te32;
-	HANDLE ThreadSnap = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, pid);
+    THREADENTRY32 te32;
+    te32.dwSize = sizeof(THREADENTRY32);
+    HANDLE ThreadSnap = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, pid);
+    if (!ThreadSnap) { printf("[-]Invalid threadsnap handle"); }
     CONTEXT ctx;
     Thread32First(ThreadSnap, &te32);
-
+    BOOL DbgClean = TRUE;
     do {
         if (te32.th32OwnerProcessID == pid) {
             //check if stack has legit values
             HANDLE hThread = OpenThread(THREAD_GET_CONTEXT, FALSE, te32.th32ThreadID);
             if (!hThread) { printf("[-] Got an invalid thread handle, exiting..."); exit(1); }
             SuspendThread(hThread);
-            ctx.ContextFlags = CONTEXT_FULL;
+            ctx.ContextFlags = CONTEXT_ALL;
             GetThreadContext(hThread, &ctx);
-            
+
+
+            // stack detection
             CheckThreadStack(hThread, &ctx);
 
+            // Debugger register check
+            if (ctx.Dr7 != 0) {
+                printf("[!] Hardware breakpoint detected!\n");
+                BOOL DbgClean = 0;
+            }
+
             ResumeThread(hThread);
+            CloseHandle(hThread);
         }
     } while (Thread32Next(ThreadSnap, &te32));
-       
+
+    printf("[+] Debug registers clean!\n");
+    printf("[+] Stack  detected! is clean\n");
+
+    if (!InitializeNtApi()) {
+        printf("Failed to initialize NT API\n");
+        return;
+    }
+    size = 0x100000; // 1MB 1fb
+    PSYSTEM_HANDLE_INFORMATION handleInfo = (PSYSTEM_HANDLE_INFORMATION)malloc(size);
+    status = NtQuerySystemInformation(SystemHandleInformation, handleInfo, size, &size);
+    if (status == 0xC0000004) {
+        free(handleInfo);
+        handleInfo = malloc(size); // Reallocate with correct size
+        status = NtQuerySystemInformation(SystemHandleInformation, handleInfo, size, &size);
+    }
 
 
 
-    
-
-
-
-
+    // Check who has open handle to game
+    if (handleInfo == NULL) exit(1);
+    char pname[MAX_PATH] = { 0 };
+    PVOID pProcessObject = NULL;
+    PVOID pTargetProcessObj = GetProcessObject(pid); 
+    // Find the process object by looking for ANY handle with type 7 that another process has to target
+    for (ULONG i = 0; i < handleInfo->NumberOfHandles; i++) {
+        if (handleInfo->Handles[i].ObjectTypeIndex == 7 && handleInfo->Handles[i].Object == pTargetProcessObj) {
+            GetNameByPID(handleInfo->Handles[i].UniqueProcessId, pname, MAX_PATH);
+            printf("ppid %d with name %s has open handle to target process\n", handleInfo->Handles[i].UniqueProcessId, pname);
+        }
+    }
 
     return 0;
 }

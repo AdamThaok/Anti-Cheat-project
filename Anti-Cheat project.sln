@@ -1,11 +1,13 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
-VisualStudioVersion = 17.14.36221.1 d17.14
+VisualStudioVersion = 17.14.36221.1
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Anti-Cheat project", "Anti-Cheat project\Anti-Cheat project.vcxproj", "{0F05A8DA-D15A-476A-880A-F2354C8FB72C}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "calculate CRC32", "calculate CRC32\calculate CRC32.vcxproj", "{F7F47757-1E0E-446F-839A-084FEEECB5A0}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Open handle to game", "Open handle to game\Open handle to game.vcxproj", "{DF39AB67-6F92-4D26-91ED-03B00B796086}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -31,6 +33,14 @@ Global
 		{F7F47757-1E0E-446F-839A-084FEEECB5A0}.Release|x64.Build.0 = Release|x64
 		{F7F47757-1E0E-446F-839A-084FEEECB5A0}.Release|x86.ActiveCfg = Release|Win32
 		{F7F47757-1E0E-446F-839A-084FEEECB5A0}.Release|x86.Build.0 = Release|Win32
+		{DF39AB67-6F92-4D26-91ED-03B00B796086}.Debug|x64.ActiveCfg = Debug|x64
+		{DF39AB67-6F92-4D26-91ED-03B00B796086}.Debug|x64.Build.0 = Debug|x64
+		{DF39AB67-6F92-4D26-91ED-03B00B796086}.Debug|x86.ActiveCfg = Debug|Win32
+		{DF39AB67-6F92-4D26-91ED-03B00B796086}.Debug|x86.Build.0 = Debug|Win32
+		{DF39AB67-6F92-4D26-91ED-03B00B796086}.Release|x64.ActiveCfg = Release|x64
+		{DF39AB67-6F92-4D26-91ED-03B00B796086}.Release|x64.Build.0 = Release|x64
+		{DF39AB67-6F92-4D26-91ED-03B00B796086}.Release|x86.ActiveCfg = Release|Win32
+		{DF39AB67-6F92-4D26-91ED-03B00B796086}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
