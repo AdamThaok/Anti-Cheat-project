@@ -156,7 +156,6 @@ int main() {
             CheckThreadStack(hThread, &ctx);
 
             ResumeThread(hThread);
-            CloseHandle(hThread);
         }
     } while (Thread32Next(ThreadSnap, &te32));
        
