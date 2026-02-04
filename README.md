@@ -1,5 +1,5 @@
 # Usermode Anti-Cheat System
-<img width="558" height="265" alt="image" src="https://github.com/user-attachments/assets/d6c92912-b4f3-4167-bc37-d7089eb06982" />
+<img width="550" height="273" alt="example" src="https://github.com/user-attachments/assets/12e40346-edec-478b-9c0b-095964c4fc60" />
 
 A Windows usermode anti-cheat implementation demonstrating various detection techniques used to identify game manipulation, debugging, and code injection attempts.
 
